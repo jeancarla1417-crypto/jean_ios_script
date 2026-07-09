@@ -139,6 +139,7 @@ local function MkTab(n)
     Tabs[n]=sc; return sc
 end
 local CT=MkTab("Combat"); local VT=MkTab("Visuals"); local FT=MkTab("Farm"); local MT=MkTab("Misc"); local TT=MkTab("Teleport")
+do local ttLy=TT:FindFirstChildOfClass("UIListLayout"); if ttLy then ttLy.SortOrder=Enum.SortOrder.LayoutOrder end end
 
 local function SetTab(n)
     for k,t in pairs(Tabs) do t.Visible=(k==n) end
@@ -222,6 +223,60 @@ local function SecLbl(par, txt)
     return l
 end
 
+-- ════════ FLY MOTO: helpers + botones flotantes ════════
+local LastFlySeat=nil
+local function ClearSeatMovers(s)
+    if s then
+        local bv=s:FindFirstChild("JXJFly"); if bv then bv:Destroy() end
+        local bg=s:FindFirstChild("JXJFlyG"); if bg then bg:Destroy() end
+    end
+end
+local function FlyCleanup()
+    local char=L_Plr.Character
+    if char then
+        local hum=char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.SeatPart then ClearSeatMovers(hum.SeatPart) end
+    end
+    ClearSeatMovers(LastFlySeat)
+    LastFlySeat=nil
+end
+local function CharFlyCleanup()
+    local char=L_Plr.Character
+    local hrp=char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local bv=hrp:FindFirstChild("JXJCF"); if bv then bv:Destroy() end
+        local bg=hrp:FindFirstChild("JXJCG"); if bg then bg:Destroy() end
+        local av=hrp:FindFirstChild("JXJCAV"); if av then av:Destroy() end
+    end
+    local hum=char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.PlatformStand=false
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+end
+L_Plr.CharacterAdded:Connect(function()
+    _G.Misc.FlyUp=false; _G.Misc.FlyDown=false
+    ClearSeatMovers(LastFlySeat); LastFlySeat=nil
+end)
+
+local FlyBtns=Instance.new("Frame",ScreenGui)
+FlyBtns.Size=UDim2.new(0,64,0,140); FlyBtns.Position=UDim2.new(1,-78,0.5,-70)
+FlyBtns.BackgroundTransparency=1; FlyBtns.Visible=false
+local function MkFlyBtn(txt,posY,onDown,onUp)
+    local b=Instance.new("TextButton",FlyBtns)
+    b.Size=UDim2.new(0,64,0,64); b.Position=UDim2.new(0,0,0,posY)
+    b.BackgroundColor3=Color3.fromRGB(18,18,26); b.BackgroundTransparency=0.25
+    b.Text=txt; b.TextColor3=Color3.fromRGB(52,199,89); b.Font=Enum.Font.GothamBold; b.TextSize=26
+    b.BorderSizePixel=0; Instance.new("UICorner",b).CornerRadius=UDim.new(1,0)
+    local stk=Instance.new("UIStroke",b); stk.Color=Color3.fromRGB(52,199,89); stk.Thickness=1.5; stk.Transparency=0.4
+    b.MouseButton1Down:Connect(onDown)
+    b.MouseButton1Up:Connect(onUp)
+    b.MouseLeave:Connect(onUp)
+    return b
+end
+MkFlyBtn("▲",0,function() _G.Misc.FlyUp=true end,function() _G.Misc.FlyUp=false end)
+MkFlyBtn("▼",76,function() _G.Misc.FlyDown=true end,function() _G.Misc.FlyDown=false end)
+
 -- ════════ COMBAT ════════
 ValRow(CT,"Tamaño Hitbox","Tamaño del hitbox",15,function(v) _G.Hitbox_Size=v end)
 SecLbl(CT,"  HITBOX PARTS")
@@ -231,6 +286,7 @@ IosRow(CT,"Brazo Izq.","Hitbox brazo izq.",false,function(v) _G.Parts_Active.Lef
 IosRow(CT,"Brazo Der.","Hitbox brazo der.",false,function(v) _G.Parts_Active.RightUpperArm=v end)
 IosRow(CT,"Pierna Izq.","Hitbox pierna izq.",false,function(v) _G.Parts_Active.LeftUpperLeg=v end)
 IosRow(CT,"Pierna Der.","Hitbox pierna der.",false,function(v) _G.Parts_Active.RightUpperLeg=v end)
+SecLbl(CT,"  COMBAT")
 
 -- ════════ VISUALS ════════
 SecLbl(VT,"  ESP")
@@ -246,17 +302,233 @@ SecLbl(FT,"  AUTO FARM")
 ActBtn(FT,"🚜  AUTO FARM",Color3.fromRGB(52,199,89),function()
     pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/rexxymayor-ai/SCRIPTtt/refs/heads/main/script%20automs",true))() end)
 end)
+local fn=Instance.new("TextLabel",FT); fn.Size=UDim2.new(1,0,0,28); fn.BackgroundTransparency=1; fn.Text="Ejecuta el script de auto farm externo"; fn.TextColor3=Color3.fromRGB(65,65,80); fn.Font=Enum.Font.Gotham; fn.TextSize=11; fn.TextXAlignment=Enum.TextXAlignment.Left
 
 -- ════════ MISC ════════
 SecLbl(MT,"  MOVIMIENTO")
 IosRow(MT,"Speed Hack","Aumenta tu velocidad de caminar",false,function(v) _G.Misc.Speed_On=v end)
 ValRow(MT,"Velocidad","Velocidad del speed hack (máx. 23)",16,function(v) _G.Misc.SpeedVal=math.min(v,23) end)
 IosRow(MT,"Full Bright","Ilumina todo el mapa",false,function(v) _G.Misc.FullBright=v end)
+SecLbl(MT,"  FLY EN MOTO")
+IosRow(MT,"Fly en Moto","Volar en moto con botones subir/bajar",false,function(v)
+    _G.Misc.FlyMoto=v; FlyBtns.Visible=v or _G.Misc.FlyChar
+    if not v then
+        if not _G.Misc.FlyChar then _G.Misc.FlyUp=false; _G.Misc.FlyDown=false end
+        FlyCleanup()
+    end
+end)
+SliderRow(MT,"Vel. Moto","Desliza la barrita para ajustar",10,300,50,function(v) _G.Misc.FlyMotoSpeed=v end)
+SecLbl(MT,"  FLY PERSONAJE")
+IosRow(MT,"Fly Personaje","Vuela con tu personaje (▲/▼ + joystick)",false,function(v)
+    _G.Misc.FlyChar=v; FlyBtns.Visible=v or _G.Misc.FlyMoto
+    if not v then
+        if not _G.Misc.FlyMoto then _G.Misc.FlyUp=false; _G.Misc.FlyDown=false end
+        CharFlyCleanup()
+    end
+end)
+SecLbl(MT,"  HERRAMIENTAS")
+local MotoBtn
+MotoBtn=ActBtn(MT,"🏍️  TP a Mi Moto",Color3.fromRGB(90,60,200),function()
+    local char=L_Plr.Character
+    local hrp=char and char:FindFirstChild("HumanoidRootPart")
+    local hum=char and char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+    if hum.SeatPart then return end
+    local lname=string.lower(L_Plr.Name)
+    local ldisp=string.lower(L_Plr.DisplayName)
+    local owned,ownedDist=nil,math.huge
+    for _,d in pairs(workspace:GetDescendants()) do
+        if d:IsA("VehicleSeat") and not d.Occupant then
+            local m=d:FindFirstAncestorOfClass("Model")
+            local mine=false
+            if m then
+                local mn=string.lower(m.Name)
+                if string.find(mn,lname,1,true) or string.find(mn,ldisp,1,true) then mine=true end
+                if not mine then
+                    for _,c in pairs(m:GetDescendants()) do
+                        if c:IsA("StringValue") or c:IsA("ObjectValue") then
+                            local v=string.lower(tostring(c.Value))
+                            if v==lname or v==ldisp then mine=true; break end
+                        end
+                    end
+                end
+                if not mine then
+                    local ow=m:GetAttribute("Owner") or m:GetAttribute("owner")
+                    if ow and string.lower(tostring(ow))==lname then mine=true end
+                end
+            end
+            if mine then
+                local dist=(d.Position-hrp.Position).Magnitude
+                if dist<ownedDist then owned=d; ownedDist=dist end
+            end
+        end
+    end
+    if not owned then
+        if MotoBtn then
+            local old=MotoBtn.Text
+            MotoBtn.Text=T("✕ No encontré TU moto")
+            MotoBtn.BackgroundColor3=Color3.fromRGB(180,40,40)
+            task.wait(1.2)
+            MotoBtn.Text=old
+            MotoBtn.BackgroundColor3=Color3.fromRGB(90,60,200)
+        end
+        return
+    end
+    hrp.CFrame=owned.CFrame*CFrame.new(0,3,0)
+    task.wait(0.15)
+    pcall(function() owned:Sit(hum) end)
+end)
+ActBtn(MT,"🖱️  Click Delete Tool",Color3.fromRGB(34,160,60),function()
+    local Tl=Instance.new("Tool"); Tl.Name="Click Delete"; Tl.RequiresHandle=false; Tl.Parent=L_Plr.Backpack
+    Tl.Activated:Connect(function() if Mouse.Target then table.insert(DeletedObjects,{o=Mouse.Target,p=Mouse.Target.Parent}); Mouse.Target.Parent=nil end end)
+end)
+ActBtn(MT,"🔄  Reset Map",Color3.fromRGB(180,40,40),function()
+    for _,v in pairs(DeletedObjects) do if v.o then v.o.Parent=v.p end end; DeletedObjects={}
+end)
+
+-- ════════ INSTANT INTERACT ════════
 SecLbl(MT,"  INSTANT INTERACT")
 IosRow(MT,"Instant Interact","Interactúa al instante con objetos",false,function(v) _G.Misc.InstantInteract=v end)
 SliderRow(MT,"Rango Interact","Distancia para interactuar",5,50,25,function(v) _G.Misc.InteractRange=v end)
 
+-- ════════ TAB TELEPORT: TP a jugadores + Espectear ════════
+local Spectating=nil
+local function StopSpectate()
+    Spectating=nil
+    local char=L_Plr.Character
+    local hum=char and char:FindFirstChildOfClass("Humanoid")
+    if hum then Camera.CameraSubject=hum end
+end
+local function SpectatePlayer(target)
+    local tchar=target.Character
+    local thum=tchar and tchar:FindFirstChildOfClass("Humanoid")
+    if thum then Camera.CameraSubject=thum; Spectating=target end
+end
+local function TPToPlayer(target)
+    local tchar=target.Character
+    local thrp=tchar and tchar:FindFirstChild("HumanoidRootPart")
+    local char=L_Plr.Character
+    local hrp=char and char:FindFirstChild("HumanoidRootPart")
+    local hum=char and char:FindFirstChildOfClass("Humanoid")
+    if not thrp or not hrp then return false end
+    if not (hum and hum.SeatPart) then return false end
+    local dest=thrp.CFrame*CFrame.new(0,0,5)
+    local seat=hum.SeatPart
+    local model=seat:FindFirstAncestorOfClass("Model")
+    if model then
+        pcall(function() model:PivotTo(dest*CFrame.new(0,3,0)) end)
+    else
+        seat.CFrame=dest*CFrame.new(0,3,0)
+    end
+    return true
+end
+
+-- ════════ ESPECTEAR ════════
+local specHdr=SecLbl(TT,T("  ESPECTEAR")); specHdr.LayoutOrder=20
+local stopBtn=ActBtn(TT,"⏹️  Dejar de Espectear",Color3.fromRGB(180,40,40),function() StopSpectate() end); stopBtn.LayoutOrder=21
+local SpecListFrame=Instance.new("Frame",TT); SpecListFrame.LayoutOrder=22
+SpecListFrame.Size=UDim2.new(1,0,0,0); SpecListFrame.AutomaticSize=Enum.AutomaticSize.Y
+SpecListFrame.BackgroundTransparency=1
+local slLy=Instance.new("UIListLayout",SpecListFrame); slLy.Padding=UDim.new(0,6)
+
+-- ════════ TP JUGADORES ════════
+local tpHdr=SecLbl(TT,T("  TP JUGADORES")); tpHdr.LayoutOrder=30
+local PlrListFrame=Instance.new("Frame",TT); PlrListFrame.LayoutOrder=31
+PlrListFrame.Size=UDim2.new(1,0,0,0); PlrListFrame.AutomaticSize=Enum.AutomaticSize.Y
+PlrListFrame.BackgroundTransparency=1
+local plLy=Instance.new("UIListLayout",PlrListFrame); plLy.Padding=UDim.new(0,6)
+local function RebuildPlrList()
+    for _,c in pairs(SpecListFrame:GetChildren()) do
+        if c:IsA("Frame") then c:Destroy() end
+    end
+    for _,c in pairs(PlrListFrame:GetChildren()) do
+        if c:IsA("Frame") then c:Destroy() end
+    end
+    for _,p in pairs(Players:GetPlayers()) do
+        if p~=L_Plr then
+            local srow=Instance.new("Frame",SpecListFrame)
+            srow.Size=UDim2.new(1,0,0,48); srow.BackgroundColor3=Color3.fromRGB(18,18,26); srow.BorderSizePixel=0
+            Instance.new("UICorner",srow).CornerRadius=UDim.new(0,10)
+            local snm=Instance.new("TextLabel",srow)
+            snm.Size=UDim2.new(1,-116,1,0); snm.Position=UDim2.new(0,14,0,0); snm.BackgroundTransparency=1
+            snm.Text=p.DisplayName.." (@"..p.Name..")"; snm.TextColor3=Color3.new(1,1,1)
+            snm.Font=Enum.Font.GothamBold; snm.TextSize=12; snm.TextXAlignment=Enum.TextXAlignment.Left
+            snm.TextTruncate=Enum.TextTruncate.AtEnd
+            local sp=Instance.new("TextButton",srow)
+            sp.Size=UDim2.new(0,96,0,32); sp.Position=UDim2.new(1,-104,0.5,-16)
+            sp.BackgroundColor3=Color3.fromRGB(90,60,200); sp.TextColor3=Color3.new(1,1,1)
+            sp.Text=T("👁️ Espectear"); sp.Font=Enum.Font.GothamBold; sp.TextSize=12; sp.BorderSizePixel=0
+            Instance.new("UICorner",sp).CornerRadius=UDim.new(0,8)
+            sp.MouseButton1Click:Connect(function() SpectatePlayer(p) end)
+            local trow=Instance.new("Frame",PlrListFrame)
+            trow.Size=UDim2.new(1,0,0,48); trow.BackgroundColor3=Color3.fromRGB(18,18,26); trow.BorderSizePixel=0
+            Instance.new("UICorner",trow).CornerRadius=UDim.new(0,10)
+            local tnm=Instance.new("TextLabel",trow)
+            tnm.Size=UDim2.new(1,-80,1,0); tnm.Position=UDim2.new(0,14,0,0); tnm.BackgroundTransparency=1
+            tnm.Text=p.DisplayName.." (@"..p.Name..")"; tnm.TextColor3=Color3.new(1,1,1)
+            tnm.Font=Enum.Font.GothamBold; tnm.TextSize=12; tnm.TextXAlignment=Enum.TextXAlignment.Left
+            tnm.TextTruncate=Enum.TextTruncate.AtEnd
+            local tp=Instance.new("TextButton",trow)
+            tp.Size=UDim2.new(0,60,0,32); tp.Position=UDim2.new(1,-68,0.5,-16)
+            tp.BackgroundColor3=Color3.fromRGB(52,199,89); tp.TextColor3=Color3.new(0,0,0)
+            tp.Text="TP"; tp.Font=Enum.Font.GothamBold; tp.TextSize=12; tp.BorderSizePixel=0
+            Instance.new("UICorner",tp).CornerRadius=UDim.new(0,8)
+            tp.MouseButton1Click:Connect(function()
+                if not TPToPlayer(p) then
+                    tp.Text="🏍️!"; tp.BackgroundColor3=Color3.fromRGB(180,40,40); tp.TextColor3=Color3.new(1,1,1)
+                    task.wait(1)
+                    tp.Text="TP"; tp.BackgroundColor3=Color3.fromRGB(52,199,89); tp.TextColor3=Color3.new(0,0,0)
+                end
+            end)
+        end
+    end
+end
+local refreshBtn=ActBtn(TT,"🔄  Refrescar Lista",Color3.fromRGB(34,160,60),function() RebuildPlrList() end); refreshBtn.LayoutOrder=32
+RebuildPlrList()
+Players.PlayerAdded:Connect(function() task.wait(0.5) RebuildPlrList() end)
+Players.PlayerRemoving:Connect(function(p)
+    if Spectating==p then StopSpectate() end
+    task.wait(0.5) RebuildPlrList()
+end)
+
+-- ════════ HELPERS ════════
+local function FindMySeat()
+    local char=L_Plr.Character
+    if not char then return nil end
+    local hum=char:FindFirstChildOfClass("Humanoid")
+    if hum and hum.SeatPart then return hum.SeatPart end
+    return nil
+end
+
 local function StartHub()
+    local function CreateESP(plr)
+        local Box=Drawing.new("Square"); Box.Thickness=1; Box.Filled=false; Box.Color=Color3.fromRGB(52,199,89); Box.Visible=false
+        local Nm=Drawing.new("Text"); Nm.Size=13; Nm.Center=true; Nm.Outline=true; Nm.Color=Color3.new(1,1,1); Nm.Visible=false
+        local Ds=Drawing.new("Text"); Ds.Size=13; Ds.Center=true; Ds.Outline=true; Ds.Color=Color3.new(1,1,1); Ds.Visible=false
+        local Wp=Drawing.new("Text"); Wp.Size=13; Wp.Center=true; Wp.Outline=true; Wp.Color=Color3.fromRGB(52,199,89); Wp.Visible=false
+        local Ln=Drawing.new("Line"); Ln.Thickness=1; Ln.Color=Color3.fromRGB(52,199,89); Ln.Visible=false
+        local HB=Drawing.new("Square"); HB.Thickness=1; HB.Filled=true; HB.Visible=false
+        RunService.RenderStepped:Connect(function()
+            if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Humanoid") and plr~=L_Plr then
+                local HRP=plr.Character.HumanoidRootPart; local Hum=plr.Character.Humanoid
+                local Pos,OnScr=Camera:WorldToViewportPoint(HRP.Position)
+                if OnScr then
+                    local S=Camera:WorldToViewportPoint(HRP.Position-Vector3.new(0,3,0)).Y-Camera:WorldToViewportPoint(HRP.Position+Vector3.new(0,2.6,0)).Y
+                    local BS=Vector2.new(S/1.5,S); local BP=Vector2.new(Pos.X-BS.X/2,Pos.Y-BS.Y/2)
+                    Box.Visible=_G.Visuals.Box; Box.Size=BS; Box.Position=BP
+                    Nm.Visible=_G.Visuals.Names; Nm.Text=plr.Name; Nm.Position=Vector2.new(Pos.X,BP.Y-15)
+                    local myH=L_Plr.Character and L_Plr.Character:FindFirstChild("HumanoidRootPart")
+                    Ds.Visible=_G.Visuals.Dist; Ds.Text="["..((myH and math.floor((myH.Position-HRP.Position).Magnitude)) or 0).."m]"; Ds.Position=Vector2.new(Pos.X,BP.Y+BS.Y+5)
+                    local t=plr.Character:FindFirstChildOfClass("Tool"); Wp.Visible=_G.Visuals.Weapon; Wp.Text=t and t.Name or "Hands"; Wp.Position=Vector2.new(Pos.X,BP.Y+BS.Y+18)
+                    Ln.Visible=_G.Visuals.Tracers; Ln.From=Vector2.new(Camera.ViewportSize.X/2,0); Ln.To=Vector2.new(Pos.X,BP.Y)
+                    HB.Visible=_G.Visuals.HealthBar; HB.Size=Vector2.new(2,(Hum.Health/Hum.MaxHealth)*BS.Y); HB.Position=Vector2.new(BP.X-5,BP.Y+(BS.Y-HB.Size.Y)); HB.Color=Color3.fromHSV(Hum.Health/Hum.MaxHealth*0.3,1,1)
+                else Box.Visible=false;Nm.Visible=false;Ds.Visible=false;Wp.Visible=false;Ln.Visible=false;HB.Visible=false end
+            else Box.Visible=false;Nm.Visible=false;Ds.Visible=false;Wp.Visible=false;Ln.Visible=false;HB.Visible=false end
+        end)
+    end
+    for _,p in pairs(Players:GetPlayers()) do if p~=L_Plr then CreateESP(p) end end
+    Players.PlayerAdded:Connect(CreateESP)
+
     local hbTick=0
     RunService.Heartbeat:Connect(function()
         if _G.Misc.Speed_On and L_Plr.Character and L_Plr.Character:FindFirstChild("Humanoid") then
@@ -266,6 +538,22 @@ local function StartHub()
             game:GetService("Lighting").Brightness=10
             game:GetService("Lighting").ClockTime=14
         end
+        hbTick=hbTick+1
+        if hbTick%3==0 then
+            for _,p in pairs(Players:GetPlayers()) do
+                if p~=L_Plr and p.Character then
+                    for n,act in pairs(_G.Parts_Active) do
+                        if act then
+                            local part=p.Character:FindFirstChild(n)
+                            if part and part:IsA("BasePart") then
+                                part.Size=Vector3.new(_G.Hitbox_Size,_G.Hitbox_Size,_G.Hitbox_Size)
+                                part.CanCollide=false; part.Massless=true; part.Transparency=1
+                            end
+                        end
+                    end
+                end
+            end
+        end
         
         -- ════════ INSTANT INTERACT ════════
         if _G.Misc.InstantInteract then
@@ -273,7 +561,8 @@ local function StartHub()
             if char then
                 local hrp=char:FindFirstChild("HumanoidRootPart")
                 if hrp then
-                    for _,part in pairs(workspace:FindPartBoundsInRadius(hrp.Position,_G.Misc.InteractRange)) do
+                    local range=_G.Misc.InteractRange
+                    for _,part in pairs(workspace:FindPartBoundsInRadius(hrp.Position,range)) do
                         if part:IsA("BasePart") then
                             local cd=part:FindFirstChild("ClickDetector")
                             if cd then
@@ -294,7 +583,7 @@ local function StartHub()
                                 else
                                     continue
                                 end
-                                if (hrp.Position-targetPos).Magnitude<=_G.Misc.InteractRange then
+                                if (hrp.Position-targetPos).Magnitude<=range then
                                     pcall(function()
                                         obj:InputHolding(Vector3.new())
                                     end)
@@ -305,8 +594,97 @@ local function StartHub()
                 end
             end
         end
+        
+        if _G.Misc.FlyMoto then
+            local seat=FindMySeat()
+            if not seat then
+                if LastFlySeat then ClearSeatMovers(LastFlySeat); LastFlySeat=nil end
+                _G.Misc.FlyUp=false; _G.Misc.FlyDown=false
+            else
+                if LastFlySeat and LastFlySeat~=seat then ClearSeatMovers(LastFlySeat) end
+                LastFlySeat=seat
+                local bv=seat:FindFirstChild("JXJFly")
+                if not bv then
+                    bv=Instance.new("BodyVelocity"); bv.Name="JXJFly"
+                    bv.MaxForce=Vector3.new(math.huge,math.huge,math.huge)
+                    bv.P=9000; bv.Parent=seat
+                end
+                local bg=seat:FindFirstChild("JXJFlyG")
+                if not bg then
+                    bg=Instance.new("BodyGyro"); bg.Name="JXJFlyG"
+                    bg.MaxTorque=Vector3.new(math.huge,math.huge,math.huge)
+                    bg.P=9000; bg.D=500; bg.Parent=seat
+                end
+                local camLook=Camera.CFrame.LookVector
+                local flat=Vector3.new(camLook.X,0,camLook.Z)
+                if flat.Magnitude>0.01 then
+                    bg.CFrame=CFrame.new(seat.Position, seat.Position+flat.Unit)
+                end
+                local vy=0
+                if _G.Misc.FlyUp then vy=_G.Misc.FlyMotoSpeed elseif _G.Misc.FlyDown then vy=-_G.Misc.FlyMotoSpeed end
+                local horiz=Vector3.new(0,0,0)
+                local thr=seat:IsA("VehicleSeat") and seat.Throttle or 0
+                if thr==0 then
+                    local hmob=L_Plr.Character and L_Plr.Character:FindFirstChildOfClass("Humanoid")
+                    if hmob and hmob.MoveDirection.Magnitude>0.1 and flat.Magnitude>0.01 then
+                        local dot=hmob.MoveDirection:Dot(flat.Unit)
+                        if dot>0.25 then thr=1 elseif dot<-0.25 then thr=-1 end
+                    end
+                end
+                if thr~=0 and flat.Magnitude>0.01 then
+                    horiz=flat.Unit*(_G.Misc.FlyMotoSpeed*thr)
+                end
+                bv.Velocity=Vector3.new(horiz.X,vy,horiz.Z)
+            end
+        end
+        if _G.Misc.FlyChar then
+            local char=L_Plr.Character
+            local hrp=char and char:FindFirstChild("HumanoidRootPart")
+            local hum=char and char:FindFirstChildOfClass("Humanoid")
+            if hrp and hum and not hum.SeatPart then
+                local bv=hrp:FindFirstChild("JXJCF")
+                if not bv then
+                    bv=Instance.new("BodyVelocity"); bv.Name="JXJCF"
+                    bv.MaxForce=Vector3.new(math.huge,math.huge,math.huge)
+                    bv.P=1200; bv.Parent=hrp
+                end
+                local bg=hrp:FindFirstChild("JXJCG"); if bg then bg:Destroy() end
+                hum.PlatformStand=true
+                if hum:GetState()~=Enum.HumanoidStateType.Physics then
+                    hum:ChangeState(Enum.HumanoidStateType.Physics)
+                end
+                local av=hrp:FindFirstChild("JXJCAV")
+                if not av then
+                    av=Instance.new("BodyAngularVelocity"); av.Name="JXJCAV"
+                    av.AngularVelocity=Vector3.new(0,0,0)
+                    av.MaxTorque=Vector3.new(3000,3000,3000)
+                    av.P=1200; av.Parent=hrp
+                end
+                local camLook=Camera.CFrame.LookVector
+                local md=hum.MoveDirection
+                local vy
+                if _G.Misc.FlyUp then vy=_G.Misc.FlyCharSpeed
+                elseif _G.Misc.FlyDown then vy=-_G.Misc.FlyCharSpeed
+                elseif md.Magnitude>0.05 then
+                    vy=camLook.Y*_G.Misc.FlyCharSpeed
+                else
+                    vy=-2+math.sin(tick()*1.5)*1.5
+                end
+                local target=Vector3.new(md.X*_G.Misc.FlyCharSpeed,vy,md.Z*_G.Misc.FlyCharSpeed)
+                bv.Velocity=bv.Velocity:Lerp(target,0.18)
+            elseif hrp then
+                local bv=hrp:FindFirstChild("JXJCF"); if bv then bv:Destroy() end
+                local bg=hrp:FindFirstChild("JXJCG"); if bg then bg:Destroy() end
+                local av=hrp:FindFirstChild("JXJCAV"); if av then av:Destroy() end
+                if hum then
+                    hum.PlatformStand=false
+                    hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+                end
+            end
+        end
     end)
 end
 
 StartHub()
-print("✓ JEAN_IOS Script Hub Loaded - Including Instant Interact!")
+ApplyLang()
+print("✓ JEAN_IOS Script Hub Loaded - Instant Interact Ready!")
